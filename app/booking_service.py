@@ -44,6 +44,14 @@ def validate_booking(booking: BookingCreate) -> None:
     new_end = new_start + timedelta(minutes=booking.duration_min)
 
     with get_connection() as conn:
+        if conn.execute(
+            "SELECT 1 FROM bookings WHERE lesson_id = ?", (booking.lesson_id,)
+        ).fetchone():
+            raise BookingValidationError(
+                "LESSON_ID_EXISTS",
+                f"Lesson {booking.lesson_id} already exists.",
+            )
+
         tutor = conn.execute(
             "SELECT tutor_id FROM tutors WHERE tutor_id = ?",
             (booking.tutor_id,),
@@ -59,22 +67,21 @@ def validate_booking(booking: BookingCreate) -> None:
             """
             SELECT *
             FROM bookings
-            WHERE date = ?
-              AND status != 'cancelled'
+            WHERE status != 'cancelled'
             """,
-            (booking.date,),
         ).fetchall()
 
         tutor_count = sum(
             1
             for existing in existing_bookings
             if existing["tutor_id"] == booking.tutor_id
+            and existing["date"] == booking.date
         )
 
         if tutor_count >= 6:
             raise BookingValidationError(
                 "TUTOR_DAILY_LIMIT",
-                f"Tutor {booking.tutor_id} already has six active bookings that day.",
+                f"Tutor {booking.tutor_id} already has at least six non-cancelled bookings that day.",
             )
 
         for existing in existing_bookings:
