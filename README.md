@@ -236,6 +236,154 @@ March 9, 2026 is a Monday. Expected result:
 CENTRE_CLOSED
 ```
 
+## Copy/paste conflict examples
+
+Each request below is independent and can be pasted directly into `POST /bookings` in `/docs`. Every request should return `409 Conflict` with the stated `detail.code`. Rejected requests are not stored, so they can be executed again.
+
+### `TUTOR_CONFLICT`
+
+T1 already has a seeded lesson from 09:00 to 10:00 on March 10.
+
+```json
+{
+  "lesson_id": "EX_TUTOR_CONFLICT",
+  "date": "2026-03-10",
+  "start_time": "09:30",
+  "duration_min": 60,
+  "student": "Test Student",
+  "tutor_id": "T1",
+  "room": "R3"
+}
+```
+
+Expected: `409 TUTOR_CONFLICT`.
+
+### `ROOM_CONFLICT`
+
+R1 already has a seeded lesson from 09:00 to 10:00 on March 3.
+
+```json
+{
+  "lesson_id": "EX_ROOM_CONFLICT",
+  "date": "2026-03-03",
+  "start_time": "09:30",
+  "duration_min": 60,
+  "student": "Test Student",
+  "tutor_id": "T3",
+  "room": "R1"
+}
+```
+
+Expected: `409 ROOM_CONFLICT`.
+
+### `STUDENT_CONFLICT`
+
+Le Minh Chau already has a seeded lesson from 09:00 to 10:00 on March 3.
+
+```json
+{
+  "lesson_id": "EX_STUDENT_CONFLICT",
+  "date": "2026-03-03",
+  "start_time": "09:30",
+  "duration_min": 60,
+  "student": "Le Minh Chau",
+  "tutor_id": "T3",
+  "room": "R3"
+}
+```
+
+Expected: `409 STUDENT_CONFLICT`.
+
+### `TUTOR_DAILY_LIMIT`
+
+T1 already has more than six non-cancelled seeded bookings on March 6.
+
+```json
+{
+  "lesson_id": "EX_TUTOR_DAILY_LIMIT",
+  "date": "2026-03-06",
+  "start_time": "22:00",
+  "duration_min": 60,
+  "student": "Test Student",
+  "tutor_id": "T1",
+  "room": "R3"
+}
+```
+
+Expected: `409 TUTOR_DAILY_LIMIT`.
+
+### `CENTRE_CLOSED`
+
+March 9, 2026 is a Monday.
+
+```json
+{
+  "lesson_id": "EX_CENTRE_CLOSED",
+  "date": "2026-03-09",
+  "start_time": "13:00",
+  "duration_min": 60,
+  "student": "Test Student",
+  "tutor_id": "T2",
+  "room": "R1"
+}
+```
+
+Expected: `409 CENTRE_CLOSED`.
+
+### `INVALID_DURATION`
+
+Lessons must last 60 or 90 minutes.
+
+```json
+{
+  "lesson_id": "EX_INVALID_DURATION",
+  "date": "2026-03-07",
+  "start_time": "13:00",
+  "duration_min": 45,
+  "student": "Test Student",
+  "tutor_id": "T2",
+  "room": "R1"
+}
+```
+
+Expected: `409 INVALID_DURATION`.
+
+### `UNKNOWN_TUTOR`
+
+The tutor ID does not appear in `data/tutors.csv`.
+
+```json
+{
+  "lesson_id": "EX_UNKNOWN_TUTOR",
+  "date": "2026-03-07",
+  "start_time": "13:00",
+  "duration_min": 60,
+  "student": "Test Student",
+  "tutor_id": "UNKNOWN",
+  "room": "R1"
+}
+```
+
+Expected: `409 UNKNOWN_TUTOR`.
+
+### `LESSON_ID_EXISTS`
+
+`L001` already exists in the supplied lesson export.
+
+```json
+{
+  "lesson_id": "L001",
+  "date": "2026-03-07",
+  "start_time": "13:00",
+  "duration_min": 60,
+  "student": "Test Student",
+  "tutor_id": "T2",
+  "room": "R1"
+}
+```
+
+Expected: `409 LESSON_ID_EXISTS`.
+
 ## API contract
 
 ### `GET /health`
