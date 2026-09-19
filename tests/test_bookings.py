@@ -27,7 +27,7 @@ def test_accepts_valid_booking(isolated_db):
         duration_min=60,
         student="Test Student",
         tutor_id="T2",
-        room="R4",
+        room="R1",
     )
 
     result = create_booking(booking)
@@ -44,7 +44,7 @@ def test_rejects_tutor_conflict(isolated_db):
         duration_min=60,
         student="Another Student",
         tutor_id="T1",
-        room="R4",
+        room="R3",
     )
 
     with pytest.raises(BookingValidationError) as exc:
@@ -78,7 +78,7 @@ def test_rejects_student_conflict(isolated_db):
         duration_min=60,
         student="Le Minh Chau",
         tutor_id="T3",
-        room="R4",
+        room="R3",
     )
 
     with pytest.raises(BookingValidationError) as exc:
@@ -95,7 +95,7 @@ def test_rejects_monday_booking(isolated_db):
         duration_min=60,
         student="Test Student",
         tutor_id="T2",
-        room="R4",
+        room="R1",
     )
 
     with pytest.raises(BookingValidationError) as exc:
@@ -112,7 +112,7 @@ def test_rejects_seventh_tutor_booking(isolated_db):
         duration_min=60,
         student="Test Student",
         tutor_id="T1",
-        room="R4",
+        room="R1",
     )
 
     with pytest.raises(BookingValidationError) as exc:
