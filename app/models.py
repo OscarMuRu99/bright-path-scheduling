@@ -1,19 +1,39 @@
-from datetime import date, time
 import re
+from datetime import date, time
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Literal
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+
+
+RequiredText = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=100),
+]
 
 
 class BookingCreate(BaseModel):
-    lesson_id: str
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "lesson_id": "TEST001",
+                "date": "2026-03-07",
+                "start_time": "13:00",
+                "duration_min": 60,
+                "student": "Test Student",
+                "tutor_id": "T2",
+                "room": "R1",
+            }
+        },
+    )
+
+    lesson_id: RequiredText
     date: str
     start_time: str
     duration_min: int = Field(gt=0)
-    student: str
-    tutor_id: str
-    room: str
-
+    student: RequiredText
+    tutor_id: RequiredText
+    room: RequiredText
 
     @field_validator("date")
     @classmethod
