@@ -9,16 +9,16 @@
    - If paired lessons are allowed, I would probably model them as one lesson with multiple students instead of two separate bookings.
 
 2. Does the six-booking daily limit include cancelled lessons?
-   - For this implementation, I am assuming only non-cancelled bookings count.
+   - For this implementation, I am assuming only non-cancelled bookings count. If cancelled lessons should count, I would change the daily-count filter, while still freeing their slots.
 
 3. Can the centre ever open on Monday?
-   - The brief says the centre is closed on Mondays, but there is a Monday lesson in the export.
+   - The brief says the centre is closed on Mondays, but there is a Monday lesson in the export. If exceptions are allowed, I would use an explicit opening-calendar exception instead of silently allowing every Monday.
 
 4. What should happen when the tutor cancels close to the lesson?
-   - The brief explains what happens when the family cancels, but not when the tutor cancels.
+   - The brief explains what happens when the family cancels, but not when the tutor cancels. The answer would determine who is charged or paid in a future cancellation workflow; it would not change that cancellation frees the slot.
 
 5. What exactly counts as the tutor already being "told" their schedule?
-   - I would need this clarified to know when a change should be treated as a normal update or as a post-cut-off change.
+   - The brief fixes tomorrow's schedule at 16:00 today. I would clarify whether delivery or acknowledgement also needs recording, so a future history table could distinguish a published schedule from one the tutor has actually received.
 
 ### Things that do not fully match
 
@@ -46,6 +46,7 @@
 - Track cancellations and late cancellations.
 - Keep a history of schedule changes after the cut-off.
 - Notify tutors when their schedule changes.
+- Show today's schedule in one view.
 
 ### Feature chosen
 
@@ -74,7 +75,7 @@ For this exercise, I am not implementing:
 - a user interface
 - full schedule-change history
 
-These are still useful features, but I would rather make the core scheduling validation clear, reliable, and testable first.
+These are still useful features, but I would rather make the core scheduling validation clear, reliable, and testable first. This choice leaves the receptionist's cancellation/message delays, the tutor's uncertainty about the latest schedule, and the owner's requested today view unresolved. The immediate priority is the owner's explicit requirement that a student must never be booked in two places at once.
 
 ## 3. Design
 
@@ -111,7 +112,7 @@ I would add a booking event or history table with events such as:
 - moved
 - cancelled
 
-That would let the system keep both the original schedule and what changed later.
+That would let the system keep both the original schedule and what changed later. Each event would reference the lesson and record the previous and new date/time/tutor/room or status, when it changed, who changed it, and which published schedule it affected. A schedule published at the 16:00 cut-off would remain visible, with later changes shown separately. This is a proposed design, not an implemented history feature.
 
 ### Rules in the database vs application
 
@@ -139,7 +140,7 @@ I implemented:
 
 `POST /bookings`
 
-It receives a proposed lesson, checks it against the current schedule and either creates it or returns a conflict.
+It receives `lesson_id`, `date`, `start_time`, `duration_min`, `student`, `tutor_id`, and `room`. It returns the created booking with `201`, a business conflict with `409` and a `detail.code`/`detail.message`, or invalid request input with `422`. Dates must be valid `YYYY-MM-DD` and times local `HH:MM`. IDs already in the database return `LESSON_ID_EXISTS`.
 
 Possible conflict or validation codes include:
 
@@ -150,10 +151,11 @@ Possible conflict or validation codes include:
 - `CENTRE_CLOSED`
 - `INVALID_DURATION`
 - `UNKNOWN_TUTOR`
+- `LESSON_ID_EXISTS`
 
 ### Endpoint I decided not to build
 
-I considered automatic rescheduling, but decided not to build it.
+I considered `POST /bookings/{lesson_id}/reschedule`, but decided not to build automatic rescheduling.
 
 Choosing which tutor, room or family should be moved requires business priorities that are not defined in the brief.
 
@@ -200,11 +202,11 @@ The current implementation is intentionally small.
 
 Some things I would improve in a production version are:
 
-- stronger date and time modelling
+- richer date/time modelling, including an explicit centre timezone
 - explicit room records instead of treating the room as a string
-- duplicate lesson ID handling at the API level
 - concurrency protection if multiple people create bookings at the same time
 - full booking history instead of only storing the current state
+- student IDs instead of matching student names as strings
 
 The current solution also does not implement the cancellation or post-cut-off workflows because I kept the scope focused on preventing invalid new bookings.
 
@@ -238,3 +240,7 @@ One option we discussed was automatic conflict resolution or rescheduling.
 I decided not to implement it because there was not enough information in the brief to know which tutor, room, student or lesson should be moved.
 
 I think rejecting that idea was the safer choice because the tool should not silently invent business priorities that the client never defined.
+
+### Final review corrections
+
+The final review added regression tests and small fixes within the chosen booking-validation feature: malformed date/time strings now return 422, existing lesson IDs return a conflict, and overlap checks also consider lessons crossing midnight. SQLite connections now close explicitly after each transaction. The architecture and seed records are unchanged. Concurrent requests can still race between validation and insertion; transaction-level protection remains future work.
