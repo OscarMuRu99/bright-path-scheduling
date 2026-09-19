@@ -196,6 +196,8 @@ If a request is ambiguous, conflicts with a rule, or requires a decision that th
 
 I would not try to build the entire automation in that week. I would focus first on getting the data model, business rules, API boundaries and human-handoff flow right, and then automate the workflow on top of that.
 
+I prepared a static owner-view concept in `docs/OWNER_VIEW_CONCEPT.md`. It uses the supplied March 10 records to show booked lessons, a known free room and the existing tutor conflict, and proposes a future `GET /schedule?date=...` contract. It is deliberately labelled as a concept rather than implemented functionality because the export does not identify all six rooms or exact opening hours.
+
 ### What I know is still weak
 
 The current implementation is intentionally small.

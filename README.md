@@ -411,6 +411,12 @@ Tutor availability hours and exact centre opening hours are not present in the s
 
 See [DECISIONS.md](DECISIONS.md) for the questions I would ask the owner, contradictions in the brief and seed data, assumptions, rejected scope, data-model reasoning, AI usage, and next steps.
 
+### Prepared follow-up: owner schedule view
+
+A read-only [owner schedule view concept](docs/OWNER_VIEW_CONCEPT.md) shows how the supplied March 10 data could become a daily schedule: booked lessons, represented free rooms, and the historical tutor conflict are visible in one place. It also defines a proposed `GET /schedule?date=...` response and the missing business data required before implementation.
+
+This concept is intentionally not presented as working functionality. It makes the next product slice tangible while keeping the submitted implementation focused on booking validation.
+
 ## Troubleshooting
 
 ### `python` is not found
