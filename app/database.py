@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import csv
 import sqlite3
 from pathlib import Path
@@ -8,11 +9,16 @@ DATA_DIR = BASE_DIR / "data"
 DB_PATH = BASE_DIR / "bright_path.db"
 
 
+@contextmanager
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    try:
+        with conn:
+            yield conn
+    finally:
+        conn.close()
 
 
 def init_db():
