@@ -9,7 +9,7 @@ It implements one feature: **preventing invalid lesson bookings before they are 
 | Runtime | Python 3.10+ |
 | API | FastAPI |
 | Database | SQLite, created locally |
-| Tests | pytest, 24 passing |
+| Tests | pytest, 43 passing |
 | Main endpoint | `POST /bookings` |
 | Interactive documentation | `http://127.0.0.1:8000/docs` |
 
@@ -25,6 +25,7 @@ For every new booking, the service checks:
 - the tutor, room, and student are not already booked during that time
 - the tutor has fewer than six non-cancelled bookings that day
 - the `lesson_id` has not already been used
+- required text fields are not empty and unknown request fields are rejected
 
 Cancelled lessons free the tutor, room, student, and daily booking count. A `no_show` still occupies its original slot and counts toward the limit.
 
@@ -113,7 +114,7 @@ python -m pytest -v
 Expected summary:
 
 ```text
-24 passed
+43 passed
 ```
 
 The tests use temporary SQLite databases. They do not change the database used when you run the API manually.
@@ -255,6 +256,8 @@ Required request fields:
 | `tutor_id` | string | `T2` | Must exist in the tutor seed data |
 | `room` | string | `R1` | Cannot overlap another lesson in that room |
 
+Text fields are trimmed, must contain 1–100 characters, and cannot contain only spaces. Missing fields, additional unknown fields, and malformed JSON return `422` without writing a booking. Any real calendar date is accepted when it satisfies the centre's rules; the service does not depend on the computer's current date.
+
 Responses:
 
 | Status | Meaning |
@@ -262,6 +265,7 @@ Responses:
 | `201 Created` | Booking passed every rule and was stored |
 | `409 Conflict` | Valid request shape, but a business rule was violated |
 | `422 Unprocessable Entity` | Missing field, wrong type, or invalid date/time format |
+| `503 Service Unavailable` | SQLite could not be reached or could not complete the write |
 
 Possible `409` codes:
 
@@ -291,6 +295,18 @@ python -m app.database
 ```
 
 Seeding is idempotent: tutor and lesson IDs are primary keys, and seed inserts use `INSERT OR IGNORE`. Running it again does not duplicate the 3 tutors or 34 supplied lessons. It also does not delete bookings created through the API.
+
+### Transactions and recovery
+
+Validation and insertion happen inside one `BEGIN IMMEDIATE` SQLite transaction. This provides the following behavior:
+
+- a successful request commits the complete booking
+- an exception rolls the transaction back, leaving no partial booking
+- concurrent booking requests are serialized before conflict validation, so two conflicting requests cannot both be accepted
+- database connection or write failures return `503 DATABASE_UNAVAILABLE`
+- `/health` returns `503` when the application cannot connect to SQLite
+
+If the API process stops, committed bookings remain in `bright_path.db`. Restart it with the same Uvicorn command; startup safely initializes missing tables and reloads missing seed rows. Automatic process restart is a deployment concern and is not included in this local assessment.
 
 To repeat a manual example, use a new `lesson_id`. To return to only the supplied seed data, stop the API, delete the generated `bright_path.db` file, and start the API again:
 
@@ -357,8 +373,12 @@ The suite covers:
 - the sixth-versus-seventh daily booking boundary
 - cancelled and no-show behavior
 - malformed dates/times and duplicate IDs
+- missing fields, blank text, malformed JSON, and unexpected fields
 - back-to-back and 90-minute lessons
 - overlaps that cross midnight
+- atomic rollback and concurrent conflicting requests
+- database-unavailable `503` responses and database-aware health checks
+- persistence across application restart
 - idempotent seeding and working-directory-independent paths
 - database foreign-key enforcement
 
@@ -368,7 +388,7 @@ Final verification was performed in a newly created virtual environment on macOS
 |---|---|
 | `python -m pip install -r requirements.txt` | Installation completed |
 | `python -m pip check` | No broken requirements found |
-| `python -m pytest -v` | 24 passed |
+| `python -m pytest -v` | 43 passed |
 | `python -m app.database` twice | 3 tutors and 34 lessons; no duplicate seed rows |
 | Start Uvicorn and request `/health` | `200 OK`, `{"status":"ok"}` |
 
@@ -386,9 +406,8 @@ This assessment implements only new-booking validation. It does not include:
 - billing and cancellation charges
 - paired-lesson pricing
 - schedule-change history after the 16:00 cut-off
-- protection against simultaneous requests racing between validation and insertion
 
-Tutor availability hours and exact centre opening hours are not present in the supplied data, so “available” means “has no conflicting non-cancelled booking.” Students are matched by the provided name string because the export has no student ID.
+Tutor availability hours and exact centre opening hours are not present in the supplied data, so “available” means “has no conflicting non-cancelled booking.” Students are matched by the provided name string because the export has no student ID. SQLite serializes writes for this single-process assessment; a multi-instance production deployment would require a server database and database-level conflict protection.
 
 See [DECISIONS.md](DECISIONS.md) for the questions I would ask the owner, contradictions in the brief and seed data, assumptions, rejected scope, data-model reasoning, AI usage, and next steps.
 
